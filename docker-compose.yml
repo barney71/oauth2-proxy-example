@@ -1,0 +1,95 @@
+version: "3.7"
+
+services:
+
+  web-app:
+    build: .
+    container_name: web-app
+
+  oauth2-proxy:
+    image: bitnami/oauth2-proxy:7.6.0
+    container_name: oauth2-proxy
+    depends_on:
+      - redis
+    command:
+      - --http-address
+      - 0.0.0.0:4180
+    environment:
+      # Oauth provider
+      OAUTH2_PROXY_PROVIDER: oidc
+
+      # Okta metadata configuration
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: true
+      OAUTH2_PROXY_LOGIN_URL: 
+      OAUTH2_PROXY_REDEEM_URL: 
+      OAUTH2_PROXY_OIDC_JWKS_URL: 
+      OAUTH2_PROXY_OIDC_ISSUER_URL: 
+
+      # oauth2-proxy redirect url
+      OAUTH2_PROXY_REDIRECT_URL: 
+
+      # oauth2-proxy client configuration
+      OAUTH2_PROXY_CLIENT_ID: ${CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${CLIENT_SECRET}
+
+      # cookie settings
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_EXPIRE: 5m
+
+      # set and pass request headers
+      OAUTH2_PROXY_SET_XAUTHREQUEST: true
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: true
+      OAUTH2_PROXY_SET_AUTHORIZATION_HEADER: true
+      OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER: true
+      OAUTH2_PROXY_PASS_USER_HEADERS: true
+      OAUTH2_PROXY_PREFRER_EMAIL_TO_USER: true
+      
+      # log settings
+      OAUTH2_PROXY_SHOW_DEBUG_ON_ERROR: true
+      OAUTH2_PROXY_SILENCE_PING_LOGGING: false
+      OAUTH2_PROXY_REQUEST_LOGGING: true
+      OAUTH2_PROXY_STANDARD_LOGGING: true 
+      OAUTH2_PROXY_AUTH_LOGGING: true
+
+      # running behind a reverse proxy (nginx)
+      OAUTH2_PROXY_REVERSE_PROXY: true
+
+      # session data storage configuration
+      OAUTH2_PROXY_SESSION_STORE_TYPE: redis
+      OAUTH2_PROXY_REDIS_CONNECTION_URL: redis://redis
+
+      # arbitrary stuff
+      OAUTH2_PROXY_EMAIL_DOMAINS: '*'
+      OAUTH2_PROXY_PROVIDER_DISPLAY_NAME: Okta
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: true
+      OAUTH2_PROXY_OIDC_EXTRA_AUDIENCES: api://default
+      OAUTH2_PROXY_OIDC_EMAIL_CLAIM: sub
+      
+      # PKCE configuration 
+      # to be added
+
+      # client credentials flow configuration 
+      # to be added
+      
+  nginx:
+    image: nginx:1.25.4-alpine
+    container_name: nginx
+    depends_on:
+      - oauth2-proxy
+      - web-app
+    volumes:
+      - ./nginx-default.conf.template:/etc/nginx/templates/default.conf.template
+      - ./static-html:/usr/share/nginx/html 
+    ports:
+      - 80:80
+
+  redis:
+    image: redis:7.2.4-alpine3.19
+    container_name: redis
+    volumes:
+      - cache:/data
+
+volumes:
+  cache:
+    driver: local
